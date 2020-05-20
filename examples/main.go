@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/iceyang/xgin"
@@ -18,6 +19,10 @@ func main() {
 		lib.NewService,
 		lib.NewController,
 	)
+
+	x.Invoke(func() {
+		fmt.Println("I'm a invoke function")
+	})
 
 	if err := x.Run(); err != nil {
 		log.Fatalf("[xgin] Start error: %s\n", err)

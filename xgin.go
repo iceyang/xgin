@@ -16,14 +16,16 @@ var (
 )
 
 type XGin struct {
-	fxOption fx.Option
-	config   *Config
-	err      error
+	providers fx.Option
+	invokes   fx.Option
+	config    *Config
+	err       error
 }
 
 func New() *XGin {
 	return &XGin{
-		fxOption: fx.Options(),
+		providers: fx.Options(),
+		invokes:   fx.Options(),
 	}
 }
 
@@ -32,9 +34,16 @@ func (x *XGin) Config(config *Config) {
 }
 
 func (x *XGin) Provide(constructors ...interface{}) {
-	x.fxOption = fx.Options(
-		x.fxOption,
+	x.providers = fx.Options(
+		x.providers,
 		fx.Provide(constructors...),
+	)
+}
+
+func (x *XGin) Invoke(funcs ...interface{}) {
+	x.invokes = fx.Options(
+		x.invokes,
+		fx.Invoke(funcs...),
 	)
 }
 
@@ -54,17 +63,20 @@ func (x *XGin) Run() error {
 	if x.err != nil {
 		return x.err
 	}
+
+	x.Provide(Engine)
+	x.Invoke(func(e *gin.Engine, router Router) {
+		router.Route(e)
+		port := 3000
+		if x.config != nil {
+			port = x.config.HttpPort
+		}
+		e.Run(fmt.Sprintf(":%d", port))
+	})
+
 	app := fx.New(
-		x.fxOption,
-		fx.Provide(Engine),
-		fx.Invoke(func(e *gin.Engine, router Router) {
-			router.Route(e)
-			port := 3000
-			if x.config != nil {
-				port = x.config.HttpPort
-			}
-			e.Run(fmt.Sprintf(":%d", port))
-		}),
+		x.providers,
+		x.invokes,
 	)
 
 	startCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
