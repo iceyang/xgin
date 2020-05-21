@@ -14,10 +14,10 @@ func main() {
 		HttpPort: 8888,
 	})
 
-	x.Router(lib.NewRouter)
 	x.Provide(
 		lib.NewService,
 		lib.NewController,
+		lib.NewRouter,
 	)
 
 	x.Invoke(func() {
@@ -25,6 +25,6 @@ func main() {
 	})
 
 	if err := x.Run(); err != nil {
-		log.Fatalf("[xgin] Start error: %s\n", err)
+		log.Fatalf("[xgin] Start with error: %+v\n", err)
 	}
 }
