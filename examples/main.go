@@ -27,4 +27,8 @@ func main() {
 	if err := x.Run(); err != nil {
 		log.Fatalf("[xgin] Start with error: %+v\n", err)
 	}
+
+	fmt.Println("IN")
+
+	<-x.Done()
 }

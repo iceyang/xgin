@@ -3,6 +3,9 @@ package xgin
 import (
 	"context"
 	"fmt"
+	"log"
+	"net/http"
+	"os"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -10,6 +13,7 @@ import (
 )
 
 type XGin struct {
+	app       *fx.App
 	providers fx.Option
 	invokes   fx.Option
 	config    *Config
@@ -43,20 +47,19 @@ func (x *XGin) Invoke(funcs ...interface{}) {
 func (x *XGin) RunWithFunc(fun interface{}) error {
 	x.Invoke(fun)
 
-	app := fx.New(
+	x.app = fx.New(
 		x.providers,
 		x.invokes,
 	)
 
 	startCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
-	if err := app.Start(startCtx); err != nil {
-		return err
-	}
 
-	<-app.Done()
+	return x.app.Start(startCtx)
+}
 
-	return nil
+func (x *XGin) Stop(ctx context.Context) error {
+	return x.app.Stop(ctx)
 }
 
 func (x *XGin) Run() error {
@@ -67,6 +70,22 @@ func (x *XGin) Run() error {
 		if x.config != nil {
 			port = x.config.HttpPort
 		}
-		e.Run(fmt.Sprintf(":%d", port))
+
+		srv := &http.Server{
+			Addr:    fmt.Sprintf(":%d", port),
+			Handler: e,
+		}
+
+		// Initializing the server in a goroutine so that
+		// it won't block the graceful shutdown handling below
+		func() {
+			if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+				log.Fatalf("listen: %s\n", err)
+			}
+		}()
 	})
+}
+
+func (x *XGin) Done() <-chan os.Signal {
+	return x.app.Done()
 }
