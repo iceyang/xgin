@@ -6,6 +6,8 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -58,13 +60,9 @@ func (x *XGin) RunWithFunc(fun interface{}) error {
 	return x.app.Start(startCtx)
 }
 
-func (x *XGin) Stop(ctx context.Context) error {
-	return x.app.Stop(ctx)
-}
-
 func (x *XGin) Run() error {
 	x.Provide(Engine)
-	return x.RunWithFunc(func(e *gin.Engine, router Router) {
+	return x.RunWithFunc(func(lc fx.Lifecycle, e *gin.Engine, router Router) {
 		router.Route(e)
 		port := 3000
 		if x.config != nil {
@@ -76,16 +74,39 @@ func (x *XGin) Run() error {
 			Handler: e,
 		}
 
-		// Initializing the server in a goroutine so that
-		// it won't block the graceful shutdown handling below
-		func() {
-			if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-				log.Fatalf("listen: %s\n", err)
-			}
-		}()
+		lc.Append(fx.Hook{
+			OnStart: func(context.Context) error {
+				log.Println("Starting HTTP server.")
+				go func() {
+					if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+						log.Fatalf("listen: %s\n", err)
+					}
+				}()
+				return nil
+			},
+			OnStop: func(ctx context.Context) error {
+				log.Println("Stopping HTTP server.")
+				return srv.Shutdown(ctx)
+			},
+		})
 	})
 }
 
+// Done returns a channel of signals to block on after starting the
+// application. Applications listen for the SIGINT and SIGTERM signals; during
+// development, users can send the application SIGTERM by pressing Ctrl-C in
+// the same terminal as the running process.
 func (x *XGin) Done() <-chan os.Signal {
-	return x.app.Done()
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
+
+	return c
+}
+
+// Stop XGin Instance.
+func (x *XGin) Stop() error {
+	stopCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	x.app.Done()
+	return x.app.Stop(stopCtx)
 }

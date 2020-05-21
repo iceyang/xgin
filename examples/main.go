@@ -23,12 +23,16 @@ func main() {
 	x.Invoke(func() {
 		fmt.Println("I'm a invoke function")
 	})
-
 	if err := x.Run(); err != nil {
 		log.Fatalf("[xgin] Start with error: %+v\n", err)
 	}
-
-	fmt.Println("IN")
+	log.Println("[xgin] Running")
 
 	<-x.Done()
+
+	log.Println("[xgin] Stopping")
+	if err := x.Stop(); err != nil {
+		log.Fatalf("[xgin] Stop with error: %+v\n", err)
+	}
+	log.Println("[xgin] Stopped")
 }
