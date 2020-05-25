@@ -46,7 +46,7 @@ func (x *XGin) Invoke(funcs ...interface{}) {
 	)
 }
 
-func (x *XGin) RunWithFunc(fun interface{}) error {
+func (x *XGin) StartWithFunc(fun interface{}) error {
 	x.Invoke(fun)
 
 	x.app = fx.New(
@@ -60,9 +60,9 @@ func (x *XGin) RunWithFunc(fun interface{}) error {
 	return x.app.Start(startCtx)
 }
 
-func (x *XGin) Run() error {
+func (x *XGin) Start() error {
 	x.Provide(Engine)
-	return x.RunWithFunc(func(lc fx.Lifecycle, e *gin.Engine, router Router) {
+	return x.StartWithFunc(func(lc fx.Lifecycle, e *gin.Engine, router Router) {
 		router.Route(e)
 		port := 3000
 		if x.config != nil {
@@ -109,4 +109,19 @@ func (x *XGin) Stop() error {
 	defer cancel()
 	x.app.Done()
 	return x.app.Stop(stopCtx)
+}
+
+func (x *XGin) Run() {
+	if err := x.Start(); err != nil {
+		log.Fatalf("[xgin] Start with error: %+v\n", err)
+	}
+	log.Println("[xgin] Running")
+
+	<-x.Done()
+
+	log.Println("[xgin] Stopping")
+	if err := x.Stop(); err != nil {
+		log.Fatalf("[xgin] Stop with error: %+v\n", err)
+	}
+	log.Println("[xgin] Stopped")
 }
