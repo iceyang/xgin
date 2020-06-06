@@ -76,7 +76,7 @@ func (x *XGin) Start() error {
 
 		lc.Append(fx.Hook{
 			OnStart: func(context.Context) error {
-				log.Println("Starting HTTP server.")
+				log.Printf("Starting HTTP server. Listening on %d", port)
 				go func() {
 					if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 						log.Fatalf("listen: %s\n", err)
